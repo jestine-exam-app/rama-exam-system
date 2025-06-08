@@ -1,0 +1,87 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Performance Analysis - Rama Exam System</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+</head>
+<body>
+  <h2>Performance Analysis</h2>
+  <button onclick="initDB()">Load DB</button>
+  <label>Exam Type:
+    <select id="examType">
+      <option>Mid Term</option>
+      <option>End Term</option>
+    </select>
+  </label>
+  <button onclick="generateAnalysis()">Generate</button>
+  <button onclick="window.print()">Print as PDF</button>
+
+  <pre id="output" style="margin-top:20px; white-space: pre-wrap;"></pre>
+
+  <script>
+    let db;
+
+    async function initDB() {
+      const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${f}` });
+      db = new SQL.Database();
+      alert("DB ready!");
+    }
+
+    function generateAnalysis() {
+      const exam = document.getElementById("examType").value;
+      const learners = db.exec(`SELECT s.name, s.gender, s.grade, s.assessment_no,
+        SUM(m.marks) as total FROM students s
+        JOIN marks m ON s.assessment_no = m.assessment_no
+        WHERE m.exam_type = '${exam}'
+        GROUP BY s.assessment_no`);
+
+      if (!learners.length) {
+        document.getElementById("output").textContent = "No marks available.";
+        return;
+      }
+
+      const rows = learners[0].values;
+      let totalMarks = 0, totalLearners = rows.length;
+      let male = 0, female = 0;
+      const summary = [];
+      const plCount = { "EE": [0, 0], "ME": [0, 0], "AE": [0, 0], "BE": [0, 0] };
+
+      rows.forEach(([name, gender, grade, adm, total]) => {
+        const avg = total / 9;
+        totalMarks += total;
+        const PL = total >= 675 ? "EE" : total >= 450 ? "ME" : total >= 225 ? "AE" : "BE";
+        const genderIndex = gender === "Male" ? 0 : 1;
+        if (gender === "Male") male++; else female++;
+        plCount[PL][genderIndex]++;
+        summary.push({ name, total, avg: avg.toFixed(1), PL });
+      });
+
+      summary.sort((a, b) => b.total - a.total);
+      const top5 = summary.slice(0, 5);
+      const bottom5 = summary.slice(-5);
+
+      let out = `--- CLASS ANALYSIS (${exam}) ---
+Total Learners: ${totalLearners}
+Male: ${male} | Female: ${female}
+Class Average: ${(totalMarks / totalLearners).toFixed(1)}
+
+Top 5:
+${top5.map((s, i) => `${i + 1}. ${s.name} - ${s.total} (${s.PL})`).join("\n")}
+
+Bottom 5:
+${bottom5.map((s, i) => `${totalLearners - 4 + i}. ${s.name} - ${s.total} (${s.PL})`).join("\n")}
+
+Gender-based PL Count:
+EE -> M: ${plCount.EE[0]} F: ${plCount.EE[1]}
+ME -> M: ${plCount.ME[0]} F: ${plCount.ME[1]}
+AE -> M: ${plCount.AE[0]} F: ${plCount.AE[1]}
+BE -> M: ${plCount.BE[0]} F: ${plCount.BE[1]}
+`;
+
+      document.getElementById("output").textContent = out;
+    }
+  </script>
+</body>
+</html>

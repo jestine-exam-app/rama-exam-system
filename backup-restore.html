@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Rama Exam System - Backup & Restore</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+</head>
+<body>
+  <h2>Backup & Restore Database</h2>
+  <button onclick="initDB()">Initialize New Database</button>
+  <br><br>
+  <input type="file" id="fileInput" />
+  <button onclick="restoreDB()">Restore Database</button>
+  <br><br>
+  <button onclick="downloadDB()">Download Backup</button>
+  <pre id="status"></pre>
+
+  <script>
+    let db, SQL;
+
+    async function initDB() {
+      SQL = await initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}` });
+      db = new SQL.Database();
+      db.run("CREATE TABLE IF NOT EXISTS students (id INTEGER PRIMARY KEY, name TEXT, assessment_no TEXT, gender TEXT, grade TEXT);");
+      db.run("CREATE TABLE IF NOT EXISTS teachers (id INTEGER PRIMARY KEY, name TEXT, subject TEXT, initials TEXT);");
+      db.run("CREATE TABLE IF NOT EXISTS marks (id INTEGER PRIMARY KEY, assessment_no TEXT, subject TEXT, marks INTEGER, exam_type TEXT);");
+      document.getElementById("status").textContent = "New DB initialized.";
+    }
+
+    function downloadDB() {
+      const data = db.export();
+      const blob = new Blob([data], { type: "application/octet-stream" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "rama_exam_backup.sqlite";
+      a.click();
+    }
+
+    function restoreDB() {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) return alert("Please select a file.");
+      const reader = new FileReader();
+      reader.onload = function() {
+        const uInt8Array = new Uint8Array(reader.result);
+        db = new SQL.Database(uInt8Array);
+        document.getElementById("status").textContent = "Database restored from file.";
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  </script>
+</body>
+</html>

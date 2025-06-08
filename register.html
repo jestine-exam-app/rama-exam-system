@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Rama Exam DB System</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+</head>
+<body>
+  <h1>Rama Exam System (Student & Teacher Registration)</h1>
+  <button onclick="initDB()">Init Database</button>
+  <hr>
+  <h3>Register Student</h3>
+  <form onsubmit="registerStudent(); return false;">
+    Name: <input id="sname"><br>
+    Assessment No: <input id="sadm"><br>
+    Gender: <select id="sgender"><option>Male</option><option>Female</option></select><br>
+    Grade: <select id="sgrade"><option>Grade 7</option><option>Grade 8</option><option>Grade 9</option></select><br>
+    <button>Register Student</button>
+  </form>
+
+  <h3>Register Teacher</h3>
+  <form onsubmit="registerTeacher(); return false;">
+    Name: <input id="tname"><br>
+    Subject: <input id="tsubject"><br>
+    <button>Register Teacher</button>
+  </form>
+
+  <hr>
+  <h3>Students</h3>
+  <pre id="studentList"></pre>
+  <h3>Teachers</h3>
+  <pre id="teacherList"></pre>
+
+  <script>
+    let db;
+
+    async function initDB() {
+      const SQL = await initSqlJs({ locateFile: filename => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${filename}` });
+      db = new SQL.Database();
+      db.run(`
+        CREATE TABLE IF NOT EXISTS students (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, assessment_no TEXT, gender TEXT, grade TEXT);
+        CREATE TABLE IF NOT EXISTS teachers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, subject TEXT, initials TEXT);
+      `);
+      showAll();
+    }
+
+    function registerStudent() {
+      const stmt = db.prepare("INSERT INTO students (name, assessment_no, gender, grade) VALUES (?, ?, ?, ?)");
+      stmt.run([
+        document.getElementById('sname').value,
+        document.getElementById('sadm').value,
+        document.getElementById('sgender').value,
+        document.getElementById('sgrade').value
+      ]);
+      stmt.free();
+      showAll();
+    }
+
+    function registerTeacher() {
+      const name = document.getElementById('tname').value;
+      const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+      const stmt = db.prepare("INSERT INTO teachers (name, subject, initials) VALUES (?, ?, ?)");
+      stmt.run([
+        name,
+        document.getElementById('tsubject').value,
+        initials
+      ]);
+      stmt.free();
+      showAll();
+    }
+
+    function showAll() {
+      const sList = db.exec("SELECT * FROM students");
+      const tList = db.exec("SELECT * FROM teachers");
+      document.getElementById('studentList').textContent = JSON.stringify(sList[0] || {columns: [], values: []}, null, 2);
+      document.getElementById('teacherList').textContent = JSON.stringify(tList[0] || {columns: [], values: []}, null, 2);
+    }
+  </script>
+</body>
+</html>

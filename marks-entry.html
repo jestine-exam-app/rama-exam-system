@@ -1,0 +1,102 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Marks Entry - Rama Exam System</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+</head>
+<body>
+  <h2>Enter Marks</h2>
+  <button onclick="initDB()">Initialize DB</button>
+
+  <div style="margin-top: 20px;">
+    <label>Grade: 
+      <select id="grade">
+        <option>Grade 7</option>
+        <option>Grade 8</option>
+        <option>Grade 9</option>
+      </select>
+    </label>
+    <label>Subject: 
+      <select id="subject">
+        <option>English</option>
+        <option>Kiswahili</option>
+        <option>Mathematics</option>
+        <option>Integrated Science</option>
+        <option>Agriculture & Nutrition</option>
+        <option>Social Studies</option>
+        <option>Pre-Technical Studies</option>
+        <option>Creative Arts & Sports</option>
+        <option>C. R. E</option>
+      </select>
+    </label>
+    <label>Exam Type:
+      <select id="examType">
+        <option>Mid Term</option>
+        <option>End Term</option>
+      </select>
+    </label>
+    <button onclick="loadStudents()">Load Students</button>
+  </div>
+
+  <form id="marksForm" onsubmit="saveMarks(); return false;">
+    <table id="marksTable" border="1" style="margin-top:20px; border-collapse: collapse; display:none;">
+      <thead>
+        <tr><th>Name</th><th>Assessment No</th><th>Marks</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button id="saveBtn" type="submit" style="margin-top:10px; display:none;">Save Marks</button>
+  </form>
+
+  <script>
+    let db;
+    async function initDB() {
+      const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${f}` });
+      db = new SQL.Database();
+      db.run("CREATE TABLE IF NOT EXISTS students (id INTEGER PRIMARY KEY, name TEXT, assessment_no TEXT, gender TEXT, grade TEXT);");
+      db.run("CREATE TABLE IF NOT EXISTS marks (id INTEGER PRIMARY KEY AUTOINCREMENT, assessment_no TEXT, subject TEXT, marks INTEGER, exam_type TEXT);");
+      alert("Database Initialized");
+    }
+
+    function loadStudents() {
+      const grade = document.getElementById('grade').value;
+      const result = db.exec(`SELECT name, assessment_no FROM students WHERE grade='${grade}'`);
+      const rows = result[0]?.values || [];
+
+      const tbody = document.querySelector("#marksTable tbody");
+      tbody.innerHTML = '';
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${row[0]}</td><td>${row[1]}</td><td><input type='number' name='mark-${row[1]}' min='0' max='100' required></td>`;
+        tbody.appendChild(tr);
+      });
+
+      if (rows.length > 0) {
+        document.getElementById("marksTable").style.display = "";
+        document.getElementById("saveBtn").style.display = "";
+      } else {
+        alert("No students found in selected grade.");
+      }
+    }
+
+    function saveMarks() {
+      const subject = document.getElementById('subject').value;
+      const examType = document.getElementById('examType').value;
+      const inputs = document.querySelectorAll("#marksTable input");
+
+      const stmt = db.prepare("INSERT INTO marks (assessment_no, subject, marks, exam_type) VALUES (?, ?, ?, ?)");
+
+      inputs.forEach(input => {
+        const admNo = input.name.replace('mark-', '');
+        const score = parseInt(input.value);
+        stmt.run([admNo, subject, score, examType]);
+      });
+
+      stmt.free();
+      alert("Marks saved successfully!");
+    }
+  </script>
+</body>
+</html>
